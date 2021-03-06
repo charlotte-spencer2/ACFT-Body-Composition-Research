@@ -1,0 +1,635 @@
+---
+title: "Styku Anthropomorphic Analysis"
+author: "Charlotte Spencer"
+date: "3/3/2021"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+#install.packages("measurements")
+library(measurements)
+
+setwd("C:/Users/charlotte.spencer/OneDrive - West Point/Desktop/School/AY21-2/MA499")
+
+```
+
+We start by loading in our data. the data is collected into two respositories: one that includes gender information, and another that contains anthropomorphic measurements collected by the Styku Scanner.The two data tables are connected with a common key which is the cadets xnumber or cnumber.
+
+```{r}
+styku_data<-read.csv("STYKU_data.csv")
+gender_xNum <- read.csv("Gender_xNumber.csv")
+namesEmail <- read.csv("names and emails.csv")
+
+namesEmail <- namesEmail%>%
+  select(Full.Name, Email)%>%
+  unique()
+
+gender_xNum <- gender_xNum%>%
+  select(Gender, x.Number..include.the..x..)%>%
+  unique()%>%
+  na.omit()
+
+namesEmail <-full_join(namesEmail,gender_xNum, by = c("Full.Name" = "x.Number..include.the..x.."))
+
+
+styku_data <- styku_data%>%
+  left_join(select(namesEmail, Gender, Full.Name),by = c("Profile.Full.Name" = "Full.Name" ))%>%
+  unique()
+
+write.csv(styku_data, "styku data merged.csv")
+
+```
+
+## Unit Conversions
+
+We convert inches to cm and lbs to kg
+```{r}
+# Height and Weight
+styku_data$Weight <- conv_unit(styku_data$Weight, from = "lbs", to = "kg") # Height
+styku_data$Scan.Height <- conv_unit(styku_data$Scan.Height, from = "inch", to = "cm") # Weight
+
+# Legs
+styku_data$Calf.Right <- conv_unit(styku_data$Calf.Right, from = "inch", to = "cm") # Right Calf
+styku_data$Calf.Left <- conv_unit(styku_data$Calf.Left, from = "inch", to = "cm") # Left Calf
+
+styku_data$Mid.Thigh.Right <- conv_unit(styku_data$Mid.Thigh.Right, from = "inch", to = "cm") # mid Right Thigh
+styku_data$Mid.Thigh.Left <- conv_unit(styku_data$Mid.Thigh.Left, from = "inch", to = "cm") # mid Left Thigh
+
+styku_data$Thigh.Right.Lower <- conv_unit(styku_data$Thigh.Right.Lower, from = "inch", to = "cm") # lower right thigh
+styku_data$Thigh.Left.Lower <- conv_unit(styku_data$Thigh.Left.Lower, from = "inch", to = "cm") # lower left thigh
+
+styku_data$Thigh.Right.Upper <- conv_unit(styku_data$Thigh.Right.Upper, from = "inch", to = "cm") # upper right thigh
+styku_data$Thigh.Left.Upper <- conv_unit(styku_data$Thigh.Left.Upper, from = "inch", to = "cm") # upper left thigh
+
+# Arms
+styku_data$ForeArm.Right <- conv_unit(styku_data$ForeArm.Right, from = "inch", to = "cm") # right forearm
+styku_data$ForeArm.Left <- conv_unit(styku_data$ForeArm.Left, from = "inch", to = "cm") # left forearm
+
+styku_data$Bicep.Right.Lower <- conv_unit(styku_data$Bicep.Right.Lower, from = "inch", to = "cm") # right lower bicep
+styku_data$Bicep.Left.Lower <- conv_unit(styku_data$Bicep.Left.Lower, from = "inch", to = "cm") # left lower bicep
+
+styku_data$BicepRight <- conv_unit(styku_data$BicepRight, from = "inch", to = "cm") # right bicep
+styku_data$Bicep.Left <- conv_unit(styku_data$Bicep.Left, from = "inch", to = "cm") # left bicep
+
+# Torso
+styku_data$Chest <- conv_unit(styku_data$Chest, from = "inch", to = "cm") # chest
+styku_data$Waist..Abdominal. <- conv_unit(styku_data$Waist..Abdominal., from = "inch", to = "cm") # waist at abdominal
+styku_data$Waist..Lower. <- conv_unit(styku_data$Waist..Lower., from = "inch", to = "cm") # lower waist
+styku_data$Waist..Narrowest. <- conv_unit(styku_data$Waist..Narrowest., from = "inch", to = "cm") # waist at narrowest point
+styku_data$Hip <- conv_unit(styku_data$Hip, from = "inch", to = "cm") # Hip
+styku_data$High.Hip <- conv_unit(styku_data$High.Hip, from = "inch", to = "cm") # High Hip
+
+```
+
+
+
+## Correlation of Right to Left Limbs
+```{r echo = T, eval = FALSE}
+
+# For right v left forearm --> R = 0.88, p < 0.0001
+cor.test(styku_data$ForeArm.Right, styku_data$ForeArm.Left, 
+                    method = "pearson")
+ggqqplot(styku_data$ForeArm.Right, ylab = "Right Forearm")
+ggqqplot(styku_data$ForeArm.Left, ylab = "Left Forearm")
+ggscatter(data= styku_data, x = "ForeArm.Right", y = "ForeArm.Left",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Forearm: Right vs Left Correlation",
+          xlab = "Right Forearm Circumference (cm)",
+          ylab = "Left Forearm Circumference (cm)")
+
+# For right v left bicep --> R = 0.89, p < 0.0001
+cor.test(styku_data$BicepRight, styku_data$Bicep.Left, 
+                    method = "pearson")
+ggqqplot(styku_data$BicepRight, ylab = "Right Bicep")
+ggqqplot(styku_data$Bicep.Left, ylab = "Left Bicep")
+ggscatter(data= styku_data, x = "BicepRight", y = "Bicep.Left",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Bicep: Right vs Left Correlation",
+          xlab = "Right Bicep Circumference (cm)",
+          ylab = "Left Bicep Circumference (cm)")
+
+
+# For right v left lower bicep --> R = 0.91, p < 0.0001
+cor.test(styku_data$Bicep.Right.Lower, styku_data$Bicep.Left.Lower, 
+                    method = "pearson")
+ggqqplot(styku_data$Bicep.Right.Lower, ylab = "Right Lower Bicep")
+ggqqplot(styku_data$Bicep.Left.Lower, ylab = "Left Lower Bicep")
+ggscatter(data= styku_data, x = "Bicep.Right.Lower", y = "Bicep.Left.Lower",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Lower Bicep: Right vs Left Correlation",
+          xlab = "Right Lower Bicep Circumference (cm)",
+          ylab = "Left Lower Bicep Circumference (cm)")
+
+# For right v left Calf --> R = 0.7, p < 0.0001
+cor.test(styku_data$Calf.Right, styku_data$Calf.Left, 
+                    method = "pearson")
+ggqqplot(styku_data$Calf.Right, ylab = "Right Calf")
+ggqqplot(styku_data$Calf.Left, ylab = "Left Calf")
+ggscatter(data= styku_data, x = "Calf.Right", y = "Calf.Left",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Calf: Right vs Left Correlation",
+          xlab = "Right Calf Circumference (cm)",
+          ylab = "Left Calf Circumference (cm)")
+
+# For right v left mid thigh --> R = 0.93, p < 0.0001
+cor.test(styku_data$Mid.Thigh.Right, styku_data$Mid.Thigh.Left, 
+                    method = "pearson")
+ggqqplot(styku_data$Mid.Thigh.Right, ylab = "Right Mid Thigh")
+ggqqplot(styku_data$Mid.Thigh.Left, ylab = "Left Mid thigh")
+ggscatter(data= styku_data, x = "Mid.Thigh.Right", y = "Mid.Thigh.Left",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Mid Thigh: Right vs Left Correlation",
+          xlab = "Right Mid Thigh Circumference (cm)",
+          ylab = "Left id Thigh Circumference (cm)")
+
+# For right v left lower thigh --> R = 0.95, p < 0.0001
+cor.test(styku_data$Thigh.Right.Lower, styku_data$Thigh.Left.Lower, 
+                    method = "pearson")
+ggqqplot(styku_data$Thigh.Right.Lower, ylab = "Right Lower Thigh")
+ggqqplot(styku_data$Thigh.Left.Lower, ylab = "Left Lower Thigh")
+ggscatter(data= styku_data, x = "Thigh.Right.Lower", y = "Thigh.Left.Lower",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Lower Thigh: Right vs Left Correlation",
+          xlab = "Right Lower Thigh Circumference (cm)",
+          ylab = "Left Lower Thigh Circumference (cm)")
+
+# For right v left upper thigh --> R = 0.94, p < 0.0001
+cor.test(styku_data$Thigh.Right.Upper, styku_data$Thigh.Left.Upper, 
+                    method = "pearson")
+ggqqplot(styku_data$Thigh.Right.Upper, ylab = "Right Upper Thigh")
+ggqqplot(styku_data$Thigh.Left.Upper, ylab = "Left Upper Thigh")
+ggscatter(data= styku_data, x = "Thigh.Right.Upper", y = "Thigh.Left.Upper",
+          add = "reg.line", conf.int = TRUE,
+          cor.coef = TRUE, cor.method = "pearson",
+          title = "Upper Thigh: Right vs Left Correlation",
+          xlab = "Right Upper Thigh Circumference (cm)",
+          ylab = "Left Upper Thigh Circumference (cm)")
+
+```
+
+
+
+## Boxplots
+
+
+The first plot, is a simple scatter plot showing height and weight of the participants.
+```{r}
+# men vs women
+h_w <- styku_data%>%
+  select(Profile.Full.Name, Gender, Weight, Scan.Height)%>%
+  na.omit()%>%
+  ggplot(aes(x = Weight, y = Scan.Height, color = Gender)) + 
+  geom_point()+
+  labs(title = "Height v Weight",
+       y = "Height (cm)",
+       x = "Weight (kg)") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+h_w
+# Summary Statistics for Weight
+group_by(styku_data, Gender) %>%
+  summarise(
+    count = n(),
+    mean = mean(Weight, na.rm = TRUE),
+    sd = sd(Weight, na.rm = TRUE)
+  )
+# Summary Statistics for Height
+group_by(styku_data, Gender) %>%
+  summarise(
+    count = n(),
+    mean = mean(Scan.Height, na.rm = TRUE),
+    sd = sd(Scan.Height, na.rm = TRUE)
+  )
+
+# Is weight significantly diff between men and women?
+weight_W <- styku_data%>%
+  select(Gender, Weight)%>% filter (Gender == "Female")
+weight_M <- styku_data%>%
+  select(Gender, Weight)%>% filter (Gender == "Male")
+t.test(weight_W$Weight, weight_M$Weight, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Weight of Men and Women
+
+# Is height significantly diff between men and women?
+height_W <- styku_data%>%
+  select(Gender, Scan.Height)%>% filter (Gender == "Female")
+height_M <- styku_data%>%
+  select(Gender, Scan.Height)%>% filter (Gender == "Male")
+t.test(height_W$Scan.Height, height_M$Scan.Height, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference in height between men and women
+```
+
+
+ Next we will look at Leg specific measurments.
+ 
+```{r}
+# Legs
+legs <- styku_data%>%
+  select(Gender, Calf.Right, Mid.Thigh.Right, Thigh.Right.Lower, Thigh.Right.Upper)%>%
+  na.omit()%>%
+  group_by(Gender)
+
+calf <- ggplot(data = legs,aes(x = Gender, y = Calf.Right)) + 
+  geom_boxplot() + 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Calf measurments",
+       y = "Single Leg Calf Circumference (cm)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+thighs <- legs%>%
+  select(Gender, Mid.Thigh.Right, Thigh.Right.Lower, Thigh.Right.Upper)%>%
+  group_by(Gender)%>%
+  pivot_longer(!Gender,names_to = "Region", values_to = "Circumference")%>%
+  ggplot(aes(x = Gender, y = Circumference, fill = Region))+
+  geom_boxplot(position = "dodge")+
+  labs(title = "Thigh Circumferences",
+       y = "Single Thigh Circumference (cm)")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+calf
+thighs
+
+# Summary Statistics for Calves
+calf_summ<-styku_data%>%
+  select(Gender, Calf.Left, Calf.Right)%>%
+  rowwise()%>%
+  mutate(Calf = mean(c(Calf.Left,Calf.Right)))
+  
+calf_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Calf, na.rm = TRUE),
+    sd = sd(Calf, na.rm = TRUE))
+# Is calf circumference significantly diff between men and women?
+calf_W <- calf_summ%>%
+  select(Gender, Calf)%>% filter (Gender == "Female")
+calf_M <- calf_summ%>%
+  select(Gender, Calf)%>% filter (Gender == "Male")
+t.test(calf_W$Calf, calf_M$Calf, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Calf circumference of Men and Women
+
+# Summary Statistics for Mid Thigh
+midthigh_summ<-styku_data%>%
+  select(Gender, Mid.Thigh.Left, Mid.Thigh.Right)%>%
+  rowwise()%>%
+  mutate(MidThigh = mean(c(Mid.Thigh.Left, Mid.Thigh.Right)))
+  
+midthigh_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(MidThigh, na.rm = TRUE),
+    sd = sd(MidThigh, na.rm = TRUE))
+# Is mid thigh circumference significantly diff between men and women?
+midthigh_W <- midthigh_summ%>%
+  select(Gender, MidThigh)%>% filter (Gender == "Female")
+midthigh_M <- midthigh_summ%>%
+  select(Gender, MidThigh)%>% filter (Gender == "Male")
+t.test(calf_W$Calf, calf_M$Calf, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Mid Thigh Circumference of Men and Women
+
+# Summary Statistics for Lower Thigh
+lowerthigh_summ<-styku_data%>%
+  select(Gender, Thigh.Left.Lower, Thigh.Right.Lower)%>%
+  rowwise()%>%
+  mutate(LowerThigh = mean(c(Thigh.Left.Lower, Thigh.Right.Lower)))
+  
+lowerthigh_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(LowerThigh, na.rm = TRUE),
+    sd = sd(LowerThigh, na.rm = TRUE))
+# Is lower thigh circumference significantly diff between men and women?
+lowerthigh_W <- lowerthigh_summ%>%
+  select(Gender, LowerThigh)%>% filter (Gender == "Female")
+lowerthigh_M <- lowerthigh_summ%>%
+  select(Gender, LowerThigh)%>% filter (Gender == "Male")
+t.test(lowerthigh_W$LowerThigh, lowerthigh_M$LowerThigh, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Lower Thigh Circumference of Men and Women
+
+# Summary Statistics for Upper Thigh
+upperthigh_summ<-styku_data%>%
+  select(Gender, Thigh.Left.Upper, Thigh.Right.Upper)%>%
+  rowwise()%>%
+  mutate(UpperThigh = mean(c(Thigh.Left.Upper, Thigh.Right.Upper)))
+  
+upperthigh_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(UpperThigh, na.rm = TRUE),
+    sd = sd(UpperThigh, na.rm = TRUE))
+# Is lower thigh circumference significantly diff between men and women?
+upperthigh_W <- upperthigh_summ%>%
+  select(Gender, UpperThigh)%>% filter (Gender == "Female")
+upperthigh_M <- upperthigh_summ%>%
+  select(Gender, UpperThigh)%>% filter (Gender == "Male")
+t.test(upperthigh_W$UpperThigh, upperthigh_M$UpperThigh, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Lower Thigh Circumference of Men and Women
+```
+Next we'll compare the anthropomorphic measurements of the arms.
+
+```{r}
+#Arms
+arms <- styku_data%>%
+  select(Gender, ForeArm.Right, Bicep.Right.Lower, BicepRight)%>%
+  na.omit()%>%
+  group_by(Gender)
+  
+forearm <-arms%>%
+  ggplot(aes(x = Gender, y = ForeArm.Right))+
+  geom_boxplot()+ 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Single Forearm",
+       y = "Circumference (cm)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+  
+biceps <-arms%>%
+  select(Gender, Bicep.Right.Lower, BicepRight)%>%
+  group_by(Gender)%>%
+  pivot_longer(!Gender,names_to = "Region", values_to = "Circumference")%>%
+  ggplot(aes(x = Gender, y = Circumference, fill = Region))+
+  geom_boxplot(position = "dodge")+
+  labs(title = "Bicep Circumferences",
+       y = "Circumference (cm)")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+forearm
+biceps
+
+# Summary Statistics for Forearms
+forearm_summ<-styku_data%>%
+  select(Gender, ForeArm.Left, ForeArm.Right)%>%
+  rowwise()%>%
+  mutate(Forearm = mean(c(ForeArm.Right, ForeArm.Left)))
+  
+forearm_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Forearm, na.rm = TRUE),
+    sd = sd(Forearm, na.rm = TRUE))
+# Is forearm circumference significantly diff between men and women?
+forearm_W <- forearm_summ%>%
+  select(Gender, Forearm)%>% filter (Gender == "Female")
+forearm_M <- forearm_summ%>%
+  select(Gender, Forearm)%>% filter (Gender == "Male")
+t.test(forearm_W$Forearm, forearm_M$Forearm, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Forearm Circumference of Men and Women
+
+# Summary Statistics for Biceps
+bicep_summ<-styku_data%>%
+  select(Gender, Bicep.Left, BicepRight)%>%
+  rowwise()%>%
+  mutate(Bicep = mean(c(Bicep.Left, BicepRight)))
+  
+bicep_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Bicep, na.rm = TRUE),
+    sd = sd(Bicep, na.rm = TRUE))
+# Is bicep circumference significantly diff between men and women?
+bicep_W <- bicep_summ%>%
+  select(Gender, Bicep)%>% filter (Gender == "Female")
+bicep_M <- bicep_summ%>%
+  select(Gender, Bicep)%>% filter (Gender == "Male")
+t.test(bicep_W$Bicep, bicep_M$Bicep, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the bicep Circumference of Men and Women
+
+# Summary Statistics for Lower Biceps
+lowerbicep_summ<-styku_data%>%
+  select(Gender, Bicep.Left.Lower, Bicep.Right.Lower)%>%
+  rowwise()%>%
+  mutate(LowerBicep = mean(c(Bicep.Left.Lower, Bicep.Right.Lower)))
+  
+lowerbicep_summ%>%
+group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(LowerBicep, na.rm = TRUE),
+    sd = sd(LowerBicep, na.rm = TRUE))
+# Is lower bicep circumference significantly diff between men and women?
+lowerbicep_W <- lowerbicep_summ%>%
+  select(Gender, LowerBicep)%>% filter (Gender == "Female")
+lowerbicep_M <- lowerbicep_summ%>%
+  select(Gender, LowerBicep)%>% filter (Gender == "Male")
+t.test(lowerbicep_W$LowerBicep, lowerbicep_M$LowerBicep, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the lower bicep Circumference of Men and Women
+```
+Next is cmparisons of the torso.
+
+```{r}
+#Torso
+torso <- styku_data%>%
+  select(Gender, Chest, Waist..Abdominal., Waist..Lower., Waist..Narrowest., Hip, High.Hip)%>%
+  na.omit()%>%
+  group_by(Gender)
+
+chest <- torso%>%
+  ggplot(aes(x = Gender, y = Chest))+
+  geom_boxplot()+ 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Chest Circumference",
+       y = "Circumference (cm)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+  
+
+waist <-torso%>%
+  select(Gender, Waist..Abdominal., Waist..Lower., Waist..Narrowest.)%>%
+  group_by(Gender)%>%
+  pivot_longer(!Gender,names_to = "Region", values_to = "Circumference")%>%
+  ggplot(aes(x = Gender, y = Circumference, fill = Region))+
+  geom_boxplot(position = "dodge")+
+  labs(title = "Waist Circumferences",
+       y = "Circumference (cm)")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+Hip <- torso%>%
+  ggplot(aes(x = Gender, y = Hip))+
+  geom_boxplot()+ 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Hip Circumference",
+       y = "Circumference (cm)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+chest
+waist
+
+# Summary Statistics for Chest
+chest_summ<-styku_data%>%
+  select(Gender, Chest)%>%
+  group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Chest, na.rm = TRUE),
+    sd = sd(Chest, na.rm = TRUE))
+# Is chest circumference significantly diff between men and women?
+chest_W <- styku_data%>%
+  select(Gender, Chest)%>% filter (Gender == "Female")
+chest_M <- styku_data%>%
+  select(Gender, Chest)%>% filter (Gender == "Male")
+t.test(chest_W$Chest, chest_M$Chest, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the chest Circumference of Men and Women
+
+# Summary Statistics for Waist Abdominal
+wa_summ<-styku_data%>%
+  select(Gender, Waist..Abdominal.)%>%
+  group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Waist..Abdominal., na.rm = TRUE),
+    sd = sd(Waist..Abdominal., na.rm = TRUE))
+# Is Waist Abdominal circumference significantly diff between men and women?
+wa_W <- styku_data%>%
+  select(Gender, Waist..Abdominal.)%>% filter (Gender == "Female")
+wa_M <- styku_data%>%
+  select(Gender, Waist..Abdominal.)%>% filter (Gender == "Male")
+t.test(wa_W$Waist..Abdominal., wa_M$Waist..Abdominal., alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Waist Abdominal Circumference of Men and Women
+
+# Summary Statistics for Waist Narrowest
+wn_summ<-styku_data%>%
+  select(Gender, Waist..Narrowest.)%>%
+  group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Waist..Narrowest., na.rm = TRUE),
+    sd = sd(Waist..Narrowest., na.rm = TRUE))
+# Is Waist Narrowest circumference significantly diff between men and women?
+wn_W <- styku_data%>%
+  select(Gender, Waist..Narrowest.)%>% filter (Gender == "Female")
+wn_M <- styku_data%>%
+  select(Gender, Waist..Narrowest.)%>% filter (Gender == "Male")
+t.test(wn_W$Waist..Narrowest., wn_M$Waist..Narrowest., alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Waist Abdominal Circumference of Men and Women
+
+# Summary Statistics for Waist Lower
+wl_summ<-styku_data%>%
+  select(Gender, Waist..Lower.)%>%
+  group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Waist..Lower., na.rm = TRUE),
+    sd = sd(Waist..Lower., na.rm = TRUE))
+# Is Waist Abdominal circumference significantly diff between men and women?
+wl_W <- styku_data%>%
+  select(Gender, Waist..Lower.)%>% filter (Gender == "Female")
+wl_M <- styku_data%>%
+  select(Gender, Waist..Lower.)%>% filter (Gender == "Male")
+t.test(wl_W$Waist..Lower., wl_M$Waist..Lower., alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# No there is not a significant difference between the Lower Waist Circumference of Men and Women
+
+# Summary Statistics for Hips
+hip_summ<-styku_data%>%
+  select(Gender, Hip)%>%
+  group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(Hip, na.rm = TRUE),
+    sd = sd(Hip, na.rm = TRUE))
+# Is Waist Abdominal circumference significantly diff between men and women?
+hip_W <- styku_data%>%
+  select(Gender, Hip)%>% filter (Gender == "Female")
+hip_M <- styku_data%>%
+  select(Gender, Hip)%>% filter (Gender == "Male")
+t.test(hip_W$Hip, hip_M$Hip, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the Hip Circumference of Men and Women
+
+# Summary Statistics for High Hips
+hhip_summ<-styku_data%>%
+  select(Gender, High.Hip)%>%
+  group_by(Gender) %>%
+  summarise(count = n(),
+    mean = mean(High.Hip, na.rm = TRUE),
+    sd = sd(High.Hip, na.rm = TRUE))
+# Is Waist Abdominal circumference significantly diff between men and women?
+hhip_W <- styku_data%>%
+  select(Gender, High.Hip)%>% filter (Gender == "Female")
+hhip_M <- styku_data%>%
+  select(Gender, High.Hip)%>% filter (Gender == "Male")
+t.test(hhip_W$High.Hip, hhip_M$High.Hip, alternative = "two.sided", conf.level = 0.95, var.equal = FALSE)
+# Yes there is a significant difference between the High Hip Circumference of Men and Women
+```
+Finally, these BOXPLOTS are comparisons of anthropomorphic proportions. These values represent ratios of anthropomorphic measurements calculated by the Styku.
+
+```{r}
+#Proportions  
+pro <- styku_data%>%
+  select(Gender, Waist.Hip.Ratio..WHO., Bust.Hip.Ratio, Bust.Waist.Ratio)%>%
+  na.omit()%>%
+  group_by(Gender)
+
+
+WaistHip <- pro%>%
+  ggplot(aes(x = Gender, y = Waist.Hip.Ratio..WHO.))+
+  geom_boxplot()+ 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Waist v Hip ",
+       y = "Ratio (Waist/Hip)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+BustHip <- pro%>%
+  ggplot(aes(x = Gender, y = Bust.Hip.Ratio))+
+  geom_boxplot()+ 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Bust v Hip ",
+       y = "Ratio (Bust/Hip)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+BustWaist <- pro%>%
+  ggplot(aes(x = Gender, y = Bust.Waist.Ratio))+
+  geom_boxplot()+ 
+  stat_summary(fun = mean, geom = "point", shape = 1, size = 3)+
+  labs(title = "Bust v Waist",
+       y = "Ratio (Bust/Waist)") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+WaistHip
+BustHip
+BustWaist
+
+```
+
+### Cluster Analysis
+```{r}
+df <- styku_data%>%
+  select(Bicep.Left, BicepRight, Bicep.Left.Lower, Bicep.Right.Lower,
+         Bust.Hip.Ratio, Bust.Waist.Ratio,
+         Calf.Left, Calf.Right, Chest,
+         ForeArm.Left, ForeArm.Right,
+         High.Hip, Hip, Mid.Thigh.Left, Mid.Thigh.Right,
+         Thigh.Left.Lower, Thigh.Left.Upper, Thigh.Right.Lower, Thigh.Right.Upper,
+         Waist..Abdominal., Waist..Lower., Waist..Narrowest.,
+         Waist.Hip.Ratio..WHO., Weight, Scan.Height)%>%
+  scale()
+#install.packages("factoextra")
+library(factoextra)
+# Correlation-based distance method
+res.dist <- get_dist(df, method = "pearson")
+head(round(as.matrix(res.dist), 2))[, 1:6]
+# Visualize the dissimilarity matrix
+fviz_dist(res.dist, lab_size = 8)
+
+# Enhanced k-means clustering
+res.km <- eclust(df, "kmeans", nstart = 25)
+# Gap statistic plot
+fviz_gap_stat(res.km$gap_stat)
+# Silhouette plot
+fviz_silhouette(res.km)
+# Optimal number of clusters using gap statistics
+res.km$nbclust
+# Print result
+ res.km
+ 
+# Enhanced hierarchical clustering
+res.hc <- eclust(df, "hclust") # compute hclust
+fviz_dend(res.hc, rect = TRUE) # dendrogam
+fviz_silhouette(res.hc) # silhouette plot
+fviz_cluster(res.hc) # scatter plot
+
+
+```
+
+
